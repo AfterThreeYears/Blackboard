@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+    canvas {
+      background: #abcdef;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="500" height="300"></canvas>
+  <script>
+    class Blackboard {
+      constructor(canvas) {
+        this.list = [{
+          type: 'circle',
+          x: 100,
+          y: 100,
+          r: 100,
+        }];
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.width = canvas.width;
+        this.height = canvas.height;
+        this.startMouseX = 0;
+        this.startMouseY = 0;
+        this.endMouseX = 0;
+        this.endMouseY = 0;
+        this.checked = false;
+        this.curType = 'rect';
+        // 1右上
+        // 2右下
+        // 3左上
+        // 4左下
+        this.position = 0;
+        this.render();
+        this.bindEvent();
+      }
+      render() {
+        this.list.forEach((item) => {
+          const { x, y, type, r, width, height } = item;
+          if (type === 'circle') {
+            this.drawCircle(x, y, r);
+          } else if (type === 'rect') {
+            this.drawRect(x, y, width, height);
+          }
+        });
+      }
+
+      bindEvent() {
+        this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this), false);
+        this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this), false);
+      };
+
+      handleGetPosition(el, e) {
+        const rect = el.getBoundingClientRect();
+        const { clientX, clientY } = e;
+        return {
+          left: clientX - rect.left,
+          top: clientY - rect.top,
+        };
+      };
+
+      handleSetPostion() {
+        if (this.endMouseX > this.startMouseX && this.endMouseY > this.startMouseY) {
+          console.log('右下');
+          this.position = 2;
+        } else if (this.endMouseX > this.startMouseX && this.endMouseY < this.startMouseY) {
+          this.position = 1;
+          console.log('右上');
+        } else if (this.endMouseX < this.startMouseX && this.endMouseY > this.startMouseY) {
+          this.position = 4;
+          console.log('左下');
+        } else if (this.endMouseX < this.startMouseX && this.endMouseY < this.startMouseY) {
+          this.position = 3;
+          console.log('左上');
+        } else {
+          this.position = -1;
+        }
+      }
+
+      handleMouseDown(e) {
+        this.checked = true;
+        const { left, top } = this.handleGetPosition(this.canvas, e);
+        this.startMouseX = left;
+        this.startMouseY = top;
+      };
+      
+      handleMouseMove(e) {
+        if (!this.checked) return;
+        const { left, top } = this.handleGetPosition(this.canvas, e);
+        this.endMouseX = left;
+        this.endMouseY = top;
+        this.handleSetPostion();
+        const { x, y, r, width, height } = this.handleGetElParams();
+        this.clearRect();
+        this.render();
+        if (this.curType === 'rect') {
+          this.drawRect(x, y, width, height);
+        } else if ( this.curType === 'circle' ) {
+          this.drawCircle(left - x / 2, top - y / 2, r);
+        }
+      };
+
+      handleMouseUp() {
+        this.checked = false;
+        this.save();
+      };
+
+      drawCircle(x, y, radius) {
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.closePath();
+      };
+
+      drawRect(x, y, width, heigth) {
+        this.ctx.beginPath();
+        this.ctx.rect(x, y, width, heigth);
+        this.ctx.stroke();
+        this.ctx.closePath();
+      }
+
+      computedR(x, y) {
+        return y / Math.sin(Math.atan(x/y));
+      };
+
+      clearRect() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+      };
+
+      handleGetElParams() {
+        const {
+          position,
+          startMouseX,
+          startMouseY,
+          endMouseX,
+          endMouseY,
+          curType,
+          computedR,
+        } = this;
+        let x, y, height, width, r;
+        if (curType === 'rect') {
+          if (position === 2) {
+            x = startMouseX;
+            y = startMouseY;
+            width = Math.abs(startMouseX - endMouseX);
+            height = Math.abs(endMouseY - startMouseY);
+          } else if (position === 3) {
+            x = endMouseX;
+            y = endMouseY;
+            width = Math.abs(startMouseX - endMouseX);
+            height = Math.abs(endMouseY - startMouseY);
+          }
+          return {
+            x,
+            y,
+            width,
+            height,
+          };
+        } else if ( curType === 'circle' ) {
+          const x = Math.abs(endMouseX - startMouseX);
+          const y = Math.abs(endMouseY - startMouseY);
+          const r = computedR(x, y);
+          return {
+            x,
+            y,
+            r,
+          };
+        }
+      };
+
+      save(type) {
+        const { x, y, r, height, width } = this.handleGetElParams();
+        let elOptions = {};
+        if (this.curType === 'rect') {
+          elOptions = {
+            type: this.curType,
+            x,
+            y,
+            width,
+            height,
+          };
+        } else if ( this.curType === 'circle' ) {
+          elOptions = {
+            type: this.curType,
+            x,
+            y,
+            r,
+          };
+        }
+        this.list.push(elOptions);
+      }
+    }
+
+    new Blackboard(document.querySelector('canvas'));
+  </script>
+</body>
+</html>
